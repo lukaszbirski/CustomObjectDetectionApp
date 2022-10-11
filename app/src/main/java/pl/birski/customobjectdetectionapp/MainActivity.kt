@@ -4,7 +4,11 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Rect
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Bundle
@@ -25,6 +29,7 @@ import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 
@@ -34,9 +39,12 @@ class MainActivity : AppCompatActivity() {
         const val REQUEST_IMAGE_CAPTURE: Int = 1
     }
 
-    private lateinit var currentPhotoPath: String
+    private val MAX_FONT_SIZE = 96F
 
     private lateinit var binding: ActivityMainBinding
+
+    private lateinit var currentPhotoPath: String
+    private lateinit var classifier: Classifier
 
     private var requestSinglePermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -49,6 +57,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
+
+        classifier = Classifier(this)
 
         binding.selectImageBtn.setOnClickListener {
             pickMedia.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
@@ -151,7 +161,10 @@ class MainActivity : AppCompatActivity() {
 
     @Throws(IOException::class)
     private fun createImageFile(): File {
-        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        val timeStamp: String = SimpleDateFormat(
+            "yyyyMMdd_HHmmss",
+            Locale.getDefault()
+        ).format(Date())
         val storageDir: File? = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         return File.createTempFile(
             "JPEG_${timeStamp}_",
@@ -176,14 +189,57 @@ class MainActivity : AppCompatActivity() {
 
     private fun getBitmap(uri: Uri) = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
 
-    private fun runObjectDetection(bitmap: Bitmap) {
-        // TODO: Add object detection code here
-    }
-
     private fun setViewAndDetect(bitmap: Bitmap) {
         binding.imageView.setImageBitmap(bitmap)
         binding.tvPlaceholder.visibility = View.INVISIBLE
 
-        lifecycleScope.launch(Dispatchers.Default) { runObjectDetection(bitmap) }
+        lifecycleScope.launch(Dispatchers.Default) {
+            val result = classifier.runObjectDetection(bitmap)
+            runOnUiThread {
+                binding.imageView.setImageBitmap(
+                    drawDetectionResult(bitmap, result)
+                )
+            }
+        }
+    }
+
+    private fun drawDetectionResult(
+        bitmap: Bitmap,
+        detectionResults: List<DetectionResult>
+    ): Bitmap {
+        val outputBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(outputBitmap)
+        val pen = Paint()
+        pen.textAlign = Paint.Align.LEFT
+
+        detectionResults.forEach {
+            pen.color = Color.RED
+            pen.strokeWidth = 8F
+            pen.style = Paint.Style.STROKE
+            val box = it.boundingBox
+            canvas.drawRect(box, pen)
+
+            val tagSize = Rect(0, 0, 0, 0)
+
+            pen.style = Paint.Style.FILL_AND_STROKE
+            pen.color = Color.YELLOW
+            pen.strokeWidth = 2F
+
+            pen.textSize = MAX_FONT_SIZE
+            pen.getTextBounds(it.text, 0, it.text.length, tagSize)
+            val fontSize: Float = pen.textSize * box.width() / tagSize.width()
+
+            if (fontSize < pen.textSize) pen.textSize = fontSize
+
+            var margin = (box.width() - tagSize.width()) / 2.0F
+            if (margin < 0F) margin = 0F
+            canvas.drawText(
+                it.text,
+                box.left + margin,
+                box.top + tagSize.height().times(1F),
+                pen
+            )
+        }
+        return outputBitmap
     }
 }
