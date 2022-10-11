@@ -47,4 +47,6 @@ dependencies {
 
     // for photo picker
     implementation "androidx.activity:activity-ktx:1.6.0"
+    // Easy Permissions
+    implementation "pub.devrel:easypermissions:3.0.0"
 }

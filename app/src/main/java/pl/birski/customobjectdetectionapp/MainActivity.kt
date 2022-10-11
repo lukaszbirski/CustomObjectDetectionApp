@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.appcompat.app.AppCompatActivity
 import pl.birski.customobjectdetectionapp.databinding.ActivityMainBinding
@@ -11,6 +12,14 @@ import pl.birski.customobjectdetectionapp.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
+    private var requestSinglePermission = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        it.entries.forEachIndexed() { index, _ ->
+            PermissionUtil.returnPermissionsArray()[index]
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,6 +29,8 @@ class MainActivity : AppCompatActivity() {
             pickMedia.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly))
         }
 
+        askForPermissions()
+
         setContentView(binding.root)
     }
 
@@ -27,6 +38,12 @@ class MainActivity : AppCompatActivity() {
         uri?.let {
             binding.imageView.setImageBitmap(getBitmap(it))
         }
+    }
+
+    private fun askForPermissions() {
+        requestSinglePermission.launch(
+            PermissionUtil.returnPermissionsArray()
+        )
     }
 
     private fun getBitmap(uri: Uri) = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
