@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'pl.birski.customobjectdetectionapp'
-    compileSdk 32
+    compileSdk 33
 
     defaultConfig {
         applicationId "pl.birski.customobjectdetectionapp"
         minSdk 24
-        targetSdk 32
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -30,6 +30,9 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
@@ -41,4 +44,7 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+
+    // for photo picker
+    implementation "androidx.activity:activity-ktx:1.6.0"
 }
